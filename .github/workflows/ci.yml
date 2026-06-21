@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    env:
+      # Hermetic config: no network, no API key needed.
+      LLM_PROVIDER: anthropic        # auto-falls back to "echo" with no key
+      EMBEDDINGS_PROVIDER: hash
+      VECTOR_STORE: memory
+      MIN_RETRIEVAL_SCORE: "0.05"    # hashing embedder scores lower than bge-small
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Lint
+        run: ruff check src eval ui
+
+      - name: Test
+        run: pytest
+
+      - name: Eval smoke run
+        run: python eval/run_eval.py --reingest --label ci
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
