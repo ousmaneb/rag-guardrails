@@ -1,0 +1,162 @@
+# Fixed evaluation set over the security/regulatory corpus.
+# Each item: a question + a reference (ground-truth) answer used by RAGAS for
+# answer-correctness / context-recall and by the offline scorer for keyword
+# support. Keep these stable so runs are comparable across experiments.
+
+- question: What is prompt injection?
+  ground_truth: >
+    Prompt injection is when an attacker manipulates an LLM through crafted
+    inputs so it ignores its original instructions or performs unintended
+    actions. It can be direct (user overrides the system prompt) or indirect
+    (malicious instructions embedded in retrieved or external content).
+  keywords: [injection, instructions, crafted, indirect, direct]
+
+- question: What is the difference between direct and indirect prompt injection?
+  ground_truth: >
+    Direct prompt injection is when a user's input overrides the system prompt.
+    Indirect prompt injection is when the model ingests attacker-controlled
+    external content (a document, web page, or email) and treats embedded
+    instructions there as commands.
+  keywords: [direct, indirect, external, content, instructions]
+
+- question: How can sensitive information disclosure be mitigated in an LLM application?
+  ground_truth: >
+    Mitigations include sanitizing and scrubbing PII before it reaches the model,
+    never placing secrets in the context window, applying output filtering and
+    redaction, refusing requests for the system prompt, and least-privilege
+    access to data sources.
+  keywords: [pii, redaction, secrets, least, privilege, filtering]
+
+- question: What is excessive agency and how is it mitigated?
+  ground_truth: >
+    Excessive agency is when damaging actions are performed in response to
+    unexpected or manipulated LLM output, caused by excessive functionality,
+    permissions, or autonomy. Mitigations include limiting tools to the minimum
+    necessary, requiring human approval for high-impact actions, and keeping the
+    model read-only where possible.
+  keywords: [agency, permissions, autonomy, read-only, human, approval]
+
+- question: What is improper output handling?
+  ground_truth: >
+    Improper output handling is insufficient validation and sanitization of LLM
+    output before it is passed downstream, which can lead to XSS, command
+    injection, or SQL injection. Mitigations include output encoding, validating
+    output, and treating the model as an untrusted user.
+  keywords: [output, validation, xss, sql, sanitization, downstream]
+
+- question: How does retrieval augmentation help reduce misinformation?
+  ground_truth: >
+    Retrieval augmentation grounds answers in authoritative sources. A
+    faithfulness or grounding gate makes the model abstain when retrieval
+    confidence is low, reducing confident hallucination (misinformation).
+  keywords: [grounding, hallucination, abstain, sources, faithfulness]
+
+- question: What are vector and embedding weaknesses in a RAG system?
+  ground_truth: >
+    They include embedding inversion (recovering source text from vectors), data
+    leakage across tenants in a shared vector store, and poisoning of the
+    knowledge base with malicious documents carrying injection payloads.
+    Mitigations include access control, tenant isolation, document validation,
+    and provenance tracking.
+  keywords: [embedding, inversion, tenant, poisoning, provenance]
+
+- question: What are the four core functions of the NIST AI Risk Management Framework?
+  ground_truth: >
+    The four core functions are Govern, Map, Measure, and Manage. Govern is
+    cross-cutting; Map frames context and risk; Measure analyzes and benchmarks
+    risk; Manage prioritizes and responds to risks.
+  keywords: [govern, map, measure, manage]
+
+- question: What characteristics define trustworthy AI according to NIST?
+  ground_truth: >
+    Trustworthy AI is valid and reliable, safe, secure and resilient,
+    accountable and transparent, explainable and interpretable, privacy-enhanced,
+    and fair with harmful bias managed.
+  keywords: [valid, reliable, safe, secure, transparent, privacy, fair]
+
+- question: What is unbounded consumption and how is it mitigated?
+  ground_truth: >
+    Unbounded consumption is excessive, uncontrolled inference leading to denial
+    of service, denial of wallet, or model theft. Mitigations include rate
+    limiting, input/output size caps, per-user quotas, timeouts, and monitoring.
+  keywords: [rate, limiting, quota, denial, consumption]
+
+- question: How are supply chain vulnerabilities mitigated for LLM applications?
+  ground_truth: >
+    LLM supply chains are vulnerable through third-party models, datasets,
+    pre-trained components, and plugins. Mitigations include vetting data and
+    model sources, maintaining a software bill of materials (SBOM), signing and
+    verifying artifacts, and pinning dependencies.
+  keywords: [supply, chain, sbom, vetting, pinning]
+
+- question: What is data and model poisoning?
+  ground_truth: >
+    Data poisoning is when training, fine-tuning, or embedding data is
+    manipulated to introduce vulnerabilities, backdoors, or biases. Mitigations
+    include verifying data provenance, sandboxing, anomaly detection, and robust
+    testing before deployment.
+  keywords: [poisoning, training, backdoor, provenance, anomaly]
+
+- question: What is system prompt leakage and why should prompts not contain secrets?
+  ground_truth: >
+    System prompt leakage is the risk that the system prompt contains sensitive
+    information not intended to be discovered, or that revealing it weakens
+    controls. System prompts should not be relied on as a security control and
+    should not contain secrets; requests to extract the prompt should be refused.
+  keywords: [leakage, secrets, control, refused, externalize]
+
+- question: How does instruction isolation defend against indirect prompt injection?
+  ground_truth: >
+    Instruction isolation clearly marks retrieved context as data, not commands,
+    so the model does not follow instructions embedded in retrieved or external
+    content. It is a primary defense against indirect (data-borne) injection.
+  keywords: [instruction, isolation, data, commands, indirect]
+
+- question: What does the Govern function do in the NIST AI RMF?
+  ground_truth: >
+    Govern is a cross-cutting function that cultivates a culture of risk
+    management. It establishes policies, processes, accountability structures,
+    and organizational context, and applies across the entire lifecycle.
+  keywords: [govern, culture, policies, accountability, lifecycle]
+
+- question: What is the purpose of the Map function in the NIST AI RMF?
+  ground_truth: >
+    Map establishes the context and frames the risks of an AI system —
+    understanding its purpose, intended use, stakeholders, and potential impacts.
+    It produces the information needed to decide whether a system should be
+    developed at all.
+  keywords: [map, context, risk, stakeholders, impacts]
+
+- question: What does the Manage function involve in the NIST AI RMF?
+  ground_truth: >
+    Manage allocates resources to the risks that have been mapped and measured.
+    It involves prioritizing risks, responding to them, documenting decisions,
+    and is ongoing and informed by continuous monitoring.
+  keywords: [manage, prioritize, respond, resources, monitoring]
+
+- question: Why are validity and reliability necessary for trustworthy AI?
+  ground_truth: >
+    Validity and reliability are a necessary condition for trustworthiness — a
+    system that does not work as intended cannot be safe or fair in practice.
+  keywords: [validity, reliability, trustworthy, intended, necessary]
+
+- question: How does content provenance help defend a RAG knowledge base?
+  ground_truth: >
+    Tracking content provenance — recording the source of every chunk — lets a
+    poisoned document carrying an indirect injection payload be traced and
+    removed, and supports access control and tenant isolation in the vector store.
+  keywords: [provenance, source, poisoned, traced, isolation]
+
+# Negative / out-of-scope questions: the correct behavior is to abstain.
+- question: What is the capital of France and what is the best pizza topping?
+  ground_truth: >
+    This is outside the knowledge base. The assistant should say it does not have
+    relevant grounded information.
+  keywords: [don't know, not, enough, relevant]
+  out_of_scope: true
+
+- question: Who won the 2018 football World Cup?
+  ground_truth: >
+    Outside the knowledge base. The assistant should abstain rather than guess.
+  keywords: [don't know, not, enough, relevant]
+  out_of_scope: true

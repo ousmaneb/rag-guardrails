@@ -1,0 +1,28 @@
+# Secrets — commit .env.example, NEVER .env
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Eval / tracking artifacts
+mlruns/
+eval/results.md
+eval/results.json
+eval/attack_report.md
+
+# Models cache
+.cache/
+*.bin
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
