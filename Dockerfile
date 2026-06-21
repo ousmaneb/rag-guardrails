@@ -14,6 +14,7 @@ RUN pip install --upgrade pip && pip install ".[ui]"
 COPY data ./data
 COPY eval ./eval
 COPY ui ./ui
+COPY .streamlit ./.streamlit
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

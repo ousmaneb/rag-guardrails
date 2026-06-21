@@ -1,0 +1,13 @@
+# Streamlit app configuration.
+# toolbarMode = "minimal" hides the top-right "Deploy" button and the developer
+# menu, so the app shows clean (best for demos / recruiters). Use "viewer" if
+# you want the menu back (e.g. for the in-app "Record screen" option).
+[client]
+toolbarMode = "minimal"
+showErrorDetails = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
