@@ -1,19 +1,21 @@
 """RAG Assistant with Guardrails — portfolio-grade Streamlit dashboard.
 
 Four sections:
-  • Assistant         — chat with grounded, cited answers + live guardrail telemetry
-  • Security Playground — fire OWASP LLM Top 10 attacks and watch them get blocked
-  • Evaluation        — the measured scorecard (faithfulness, relevancy, block rate)
-  • About             — architecture, OWASP coverage, stack
+  - Assistant          chat with grounded, cited answers + live guardrail telemetry
+  - Security Playground fire OWASP LLM Top 10 attacks and watch them get blocked
+  - Evaluation         the measured scorecard (faithfulness, relevancy, block rate)
+  - About              architecture, OWASP coverage, stack
 
 Design system (via ui-ux-pro-max): OLED dark theme, blue (#3B82F6) + amber
-(#F59E0B) accents, Fira Sans / Fira Code typography, minimal glow, visible focus.
+(#F59E0B) accents, Fira Sans / Fira Code typography. Brand uses a custom SVG
+logo image; status is shown with text chips (no emojis, no decorative icons).
 
 Talks to the FastAPI backend over HTTP (API_URL, default http://localhost:8000).
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import time
@@ -25,10 +27,18 @@ import streamlit as st
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
 GITHUB_URL = "https://github.com/ousmaneb/rag-guardrails"
 ROOT = Path(__file__).resolve().parents[1]
+ASSETS = Path(__file__).resolve().parent / "assets"
+
+
+def _data_uri(path: Path) -> str:
+    return "data:image/svg+xml;base64," + base64.b64encode(path.read_bytes()).decode()
+
+
+MARK = _data_uri(ASSETS / "mark.svg")
 
 st.set_page_config(
     page_title="RAG Assistant · Guardrails",
-    page_icon="🛡️",
+    page_icon=str(ASSETS / "mark.svg"),
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -41,7 +51,7 @@ CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg:#0A0E17; --surface:#121826; --elev:#19223420; --card:#141B2B;
+  --bg:#0A0E17; --surface:#121826; --card:#141B2B;
   --border:#243049; --border-soft:#1C2436;
   --primary:#3B82F6; --primary-deep:#1E40AF; --accent:#F59E0B;
   --success:#22C55E; --danger:#EF4444;
@@ -55,30 +65,42 @@ html, body, [class*="css"], .stApp { background:var(--bg); font-family:'Fira San
 h1,h2,h3,h4 { font-family:'Fira Sans',sans-serif; letter-spacing:-.01em; }
 code, .mono, .metric-num { font-family:'Fira Code',monospace; }
 
+/* brand / logo image */
+.brand { display:flex; align-items:center; gap:12px; }
+.brand img { display:block; }
+.brand .wm-main { font-weight:700; font-size:1.05rem; line-height:1.05; }
+.brand .wm-sub { color:var(--muted); font-size:.64rem; letter-spacing:.24em; text-transform:uppercase; }
+
 /* hero */
 .hero { background:linear-gradient(135deg,#101a33 0%, #0c1322 60%); border:1px solid var(--border);
         border-radius:18px; padding:22px 26px; margin-bottom:18px; box-shadow:0 1px 0 #2a3a5e33 inset; }
-.hero h1 { font-size:1.7rem; margin:0 0 4px 0; font-weight:700; }
-.hero .accent { color:var(--primary); text-shadow:0 0 16px #3b82f655; }
-.hero p { color:var(--muted); margin:0; font-size:.95rem; }
+.hero .brand img { width:54px; height:54px; }
+.hero .wm-main { font-size:1.55rem; }
+.hero .wm-main .accent { color:var(--primary); text-shadow:0 0 16px #3b82f655; }
+.hero p { color:var(--muted); margin:12px 0 0; font-size:.95rem; max-width:760px; }
 
-/* pills / badges */
-.pill { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px;
+/* pills (text only) */
+.pill { display:inline-flex; align-items:center; padding:4px 11px; border-radius:999px;
         font-size:.78rem; font-weight:600; border:1px solid var(--border); background:#0f1626; color:var(--muted); }
-.pill svg { width:13px; height:13px; }
 .pill.green { color:#7ef0a6; border-color:#1c7a3f55; background:#0e2018; }
 .pill.red   { color:#ffb4b4; border-color:#7a1c1c55; background:#220e0e; }
 .pill.blue  { color:#9cc4ff; border-color:#1c3f7a55; background:#0e1626; }
 .pill.amber { color:#ffd591; border-color:#7a5c1c55; background:#201a0e; }
-.dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
 .dot.green{background:#22C55E; box-shadow:0 0 8px #22c55e99;} .dot.red{background:#EF4444; box-shadow:0 0 8px #ef444499;}
+
+/* status chip (text) */
+.chip { display:inline-block; padding:3px 10px; border-radius:6px; font-size:.72rem; font-weight:700; letter-spacing:.05em; }
+.chip.green{ background:#0e2018; color:#7ef0a6; border:1px solid #1c7a3f55;}
+.chip.red{ background:#220e0e; color:#ffb4b4; border:1px solid #7a1c1c55;}
+.chip.amber{ background:#201a0e; color:#ffd591; border:1px solid #7a5c1c55;}
 
 /* cards */
 .card { background:var(--card); border:1px solid var(--border-soft); border-radius:14px; padding:16px 18px; margin-bottom:12px; }
 .card.success { border-color:#1c7a3f66; box-shadow:0 0 0 1px #1c7a3f22, 0 0 24px #22c55e10; }
 .card.danger  { border-color:#7a1c1c66; box-shadow:0 0 0 1px #7a1c1c22, 0 0 24px #ef444412; }
 .card.warn    { border-color:#7a5c1c66; }
-.card h4 { margin:0 0 8px 0; font-size:.95rem; display:flex; align-items:center; gap:8px; }
+.card h4 { margin:0 0 8px 0; font-size:.95rem; display:flex; align-items:center; gap:10px; }
 .muted { color:var(--muted); font-size:.86rem; }
 
 /* metric card */
@@ -122,29 +144,12 @@ a { color:var(--primary); }
 """
 st.markdown(CSS, unsafe_allow_html=True)
 
-# --------------------------------------------------------------------------- #
-# Inline SVG icons (no emoji as structural icons)
-# --------------------------------------------------------------------------- #
-def _svg(path: str, w: int = 16) -> str:
+
+def brand_html(size: int, main_html: str, sub: str) -> str:
     return (
-        f'<svg width="{w}" height="{w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
-        f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{path}</svg>'
+        f'<div class="brand"><img src="{MARK}" width="{size}" height="{size}" alt="RAG Guardrails logo"/>'
+        f'<div><div class="wm-main">{main_html}</div><div class="wm-sub">{sub}</div></div></div>'
     )
-
-
-IC = {
-    "shield": _svg('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
-    "check": _svg('<path d="M20 6 9 17l-5-5"/>'),
-    "x": _svg('<path d="M18 6 6 18M6 6l12 12"/>'),
-    "msg": _svg('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
-    "chart": _svg('<path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-9"/>'),
-    "info": _svg('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'),
-    "bolt": _svg('<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>'),
-    "db": _svg('<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/>'),
-    "lock": _svg('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
-    "cpu": _svg('<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>'),
-    "warn": _svg('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>'),
-}
 
 
 # --------------------------------------------------------------------------- #
@@ -216,17 +221,11 @@ def bar_html(label: str, value: float, color: str, fmt: str | None = None) -> st
 # --------------------------------------------------------------------------- #
 health = get_health()
 with st.sidebar:
-    st.markdown(
-        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
-        f'<span style="color:var(--primary)">{IC["shield"]}</span>'
-        f'<span style="font-weight:700;font-size:1.05rem">RAG · Guardrails</span></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(brand_html(38, "RAG", "Guardrails"), unsafe_allow_html=True)
+    st.write("")
     if health:
-        st.markdown(
-            '<span class="pill green"><span class="dot green"></span> API online</span>',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<span class="pill green"><span class="dot green"></span>API online</span>',
+                    unsafe_allow_html=True)
         rows = [
             ("Model", health.get("model", "—")),
             ("Provider", health.get("llm_provider", "—")),
@@ -247,25 +246,23 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
     else:
-        st.markdown(
-            '<span class="pill red"><span class="dot red"></span> API offline</span>',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<span class="pill red"><span class="dot red"></span>API offline</span>',
+                    unsafe_allow_html=True)
         st.caption(f"Start it with `./run_local.sh` (expecting {API_URL}).")
 
     st.markdown(
         '<div class="card"><div class="muted" style="margin-bottom:6px">How it works</div>'
         '<div style="font-size:.82rem;line-height:1.7">'
-        '1 · Input guardrails screen for injection / PII<br>'
-        '2 · Retrieve top-k chunks (vector search)<br>'
-        '3 · Prompt with instruction isolation<br>'
-        '4 · Claude generates a grounded answer<br>'
-        '5 · Output guardrails: redact · ground · refuse</div></div>',
+        '1 &nbsp;Input guardrails screen for injection / PII<br>'
+        '2 &nbsp;Retrieve top-k chunks (vector search)<br>'
+        '3 &nbsp;Prompt with instruction isolation<br>'
+        '4 &nbsp;Claude generates a grounded answer<br>'
+        '5 &nbsp;Output guardrails: redact · ground · refuse</div></div>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        f'<a href="{GITHUB_URL}" target="_blank">GitHub repo ↗</a> &nbsp;·&nbsp; '
-        f'<a href="{API_URL}/docs" target="_blank">API docs ↗</a>',
+        f'<a href="{GITHUB_URL}" target="_blank">GitHub repo</a> &nbsp;·&nbsp; '
+        f'<a href="{API_URL}/docs" target="_blank">API docs</a>',
         unsafe_allow_html=True,
     )
 
@@ -274,14 +271,17 @@ with st.sidebar:
 # Hero
 # --------------------------------------------------------------------------- #
 st.markdown(
-    '<div class="hero"><h1>RAG Assistant <span class="accent">with Guardrails</span></h1>'
-    '<p>Retrieval-augmented · evaluated · hardened against the OWASP LLM Top&nbsp;10. '
-    'Ask a security / AI-governance question — or try to break it.</p>'
-    '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'
-    f'<span class="pill blue">{IC["bolt"]} FastAPI + pgvector</span>'
-    f'<span class="pill green">{IC["shield"]} 50/50 attacks blocked</span>'
-    f'<span class="pill amber">{IC["chart"]} faithfulness 0.73</span>'
-    f'<span class="pill">{IC["cpu"]} Claude</span></div></div>',
+    '<div class="hero">'
+    + brand_html(54, 'RAG Assistant <span class="accent">with Guardrails</span>',
+                 "Retrieval · Evaluation · Security")
+    + '<p>A production retrieval-augmented assistant — evaluated with a one-command harness '
+    'and hardened against the OWASP LLM Top&nbsp;10. Ask a security / AI-governance question, '
+    'or try to break it.</p>'
+    '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">'
+    '<span class="pill blue">FastAPI + pgvector</span>'
+    '<span class="pill green">50 / 50 attacks blocked</span>'
+    '<span class="pill amber">faithfulness 0.73</span>'
+    '<span class="pill">Anthropic Claude</span></div></div>',
     unsafe_allow_html=True,
 )
 
@@ -291,17 +291,17 @@ st.markdown(
 # --------------------------------------------------------------------------- #
 def render_result(data: dict) -> None:
     if data["blocked"]:
-        cls, icon, head = "danger", IC["lock"], "Blocked by input guardrails"
+        cls, chip, head = "danger", '<span class="chip red">BLOCKED</span>', "Input guardrails"
         note = "Possible prompt injection / jailbreak detected before retrieval."
     elif data["abstained"]:
-        cls, icon, head = "warn", IC["warn"], "Abstained — insufficient grounding"
+        cls, chip, head = "warn", '<span class="chip amber">ABSTAINED</span>', "Grounding gate"
         note = "The system refused rather than risk an unsupported answer."
     else:
-        cls, icon, head = "success", IC["check"], "Answered from retrieved context"
+        cls, chip, head = "success", '<span class="chip green">ANSWERED</span>', "Grounded in sources"
         note = ""
 
     st.markdown(
-        f'<div class="card {cls}"><h4><span style="color:var(--primary)">{icon}</span> {head}</h4>'
+        f'<div class="card {cls}"><h4>{chip} {head}</h4>'
         + (f'<div class="muted" style="margin-bottom:8px">{note}</div>' if note else "")
         + f'<div style="font-size:.95rem;line-height:1.6">{data["answer"]}</div></div>',
         unsafe_allow_html=True,
@@ -391,9 +391,9 @@ with tab_chat:
 # ---- Security Playground -------------------------------------------------- #
 with tab_sec:
     st.markdown(
-        f'<div class="muted" style="margin-bottom:10px">Fire adversarial prompts at the live system. '
-        f'Each maps to an OWASP LLM risk; a defended attack is <span class="pill green">{IC["check"]} blocked</span> '
-        f'or safely refused. Legitimate questions should pass through.</div>',
+        '<div class="muted" style="margin-bottom:10px">Fire adversarial prompts at the live system. '
+        'Each maps to an OWASP LLM risk; a defended attack is <span class="chip green">BLOCKED</span> '
+        'or safely refused. Legitimate questions should pass through.</div>',
         unsafe_allow_html=True,
     )
 
@@ -456,10 +456,10 @@ with tab_sec:
         defended = r["blocked"] or r["abstained"]
         good = defended if kind == "attack" else not defended
         cls = "success" if good else "danger"
-        icon = IC["check"] if good else IC["x"]
         verdict = ("BLOCKED" if r["blocked"] else "ABSTAINED" if r["abstained"] else "ANSWERED")
+        chip_cls = "green" if good else "red"
         st.markdown(
-            f'<div class="card {cls}"><h4><span>{icon}</span> {label} — {verdict}</h4>'
+            f'<div class="card {cls}"><h4><span class="chip {chip_cls}">{verdict}</span> {label}</h4>'
             f'<div class="muted mono" style="font-size:.8rem">{prompt}</div>'
             f'<div style="margin-top:8px;font-size:.86rem">{r["answer"][:200]}</div>'
             + ('<div style="margin-top:8px">' + " ".join(
@@ -501,7 +501,7 @@ with tab_eval:
     left, right = st.columns(2)
     with left:
         st.markdown(
-            '<div class="card"><h4>Retrieval & quality</h4>'
+            '<div class="card"><h4>Retrieval &amp; quality</h4>'
             + bar_html("Faithfulness", m["faithfulness"], "green")
             + bar_html("Answer relevancy", m["answer_relevancy"], "green")
             + bar_html("Context precision", m["context_precision"], "blue")
@@ -528,7 +528,7 @@ with tab_about:
         'assistant over a security / AI-governance corpus (OWASP LLM Top 10 + NIST AI RMF). '
         'Unlike a typical RAG demo it is <b>measured</b> (a one-command eval harness) and '
         '<b>defended</b> (a guardrail layer mapped to the OWASP LLM Top 10), with the '
-        'false-positive rate tracked so guardrails don\'t block real questions.</div></div>',
+        'false-positive rate tracked so guardrails do not block real questions.</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -543,7 +543,8 @@ with tab_about:
         ("LLM10", "Unbounded Consumption", "Per-IP rate limiting + size caps"),
     ]
     body = "".join(
-        f'<div style="display:grid;grid-template-columns:64px 1fr;gap:10px;padding:7px 0;border-top:1px solid var(--border-soft)">'
+        '<div style="display:grid;grid-template-columns:64px 1fr;gap:12px;padding:8px 0;'
+        'border-top:1px solid var(--border-soft)">'
         f'<span class="pill blue" style="justify-content:center">{code}</span>'
         f'<div><b>{name}</b><div class="muted" style="font-size:.82rem">{mit}</div></div></div>'
         for code, name, mit in owasp
@@ -551,19 +552,19 @@ with tab_about:
     st.markdown(f'<div class="card"><h4>OWASP LLM Top 10 coverage</h4>{body}</div>',
                 unsafe_allow_html=True)
 
-    st.markdown(
-        '<div class="card"><h4>Architecture</h4></div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><h4>Architecture</h4></div>', unsafe_allow_html=True)
     st.code(
-        "User → /chat → [input guardrails] → retriever (pgvector)\n"
-        "      → prompt (instruction isolation) → LLM (Claude)\n"
-        "      → [output guardrails: PII redaction · grounding gate]\n"
-        "      → { answer, citations, latency, guardrail_flags }",
+        "User -> /chat -> [input guardrails] -> retriever (pgvector)\n"
+        "      -> prompt (instruction isolation) -> LLM (Claude)\n"
+        "      -> [output guardrails: PII redaction · grounding gate]\n"
+        "      -> { answer, citations, latency, guardrail_flags }",
         language="text",
     )
     st.markdown(
         f'<div class="card"><h4>Stack</h4><div class="muted">'
         'FastAPI · pgvector · sentence-transformers (bge-small) · Anthropic Claude '
         '(provider-agnostic) · semantic eval scorer / RAGAS · Streamlit · Docker · GitHub Actions'
-        f'</div><div style="margin-top:10px"><a href="{GITHUB_URL}" target="_blank">View the code on GitHub ↗</a></div></div>',
+        f'</div><div style="margin-top:10px"><a href="{GITHUB_URL}" target="_blank">'
+        'View the code on GitHub</a></div></div>',
         unsafe_allow_html=True,
     )
