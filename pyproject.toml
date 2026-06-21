@@ -5,7 +5,7 @@ description = "Production RAG assistant with an evaluation harness and an OWASP-
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Alpha Bah" }]
+authors = [{ name = "Dr. Barry" }]
 
 dependencies = [
     "fastapi>=0.115",
