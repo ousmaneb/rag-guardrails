@@ -97,11 +97,23 @@ class ChatResponse(BaseModel):
 
 @app.get("/health")
 def health() -> dict:
+    pipe = get_pipeline()
+    try:
+        doc_count = pipe.retriever.store.count()
+    except Exception:
+        doc_count = None
     return {
         "status": "ok",
         "vector_store": settings.vector_store,
         "llm_provider": settings.llm_provider_effective,
         "model": settings.llm_model,
+        "embeddings": settings.embeddings_model
+        if settings.embeddings_provider != "hash"
+        else "hash",
+        "top_k": settings.top_k,
+        "chunk_tokens": settings.chunk_tokens,
+        "rate_limit_per_minute": settings.rate_limit_per_minute,
+        "indexed_chunks": doc_count,
     }
 
 

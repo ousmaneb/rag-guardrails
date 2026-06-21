@@ -40,6 +40,7 @@ def citations(results: list[RetrievedChunk]) -> list[dict]:
             "source": r.chunk.source,
             "title": r.chunk.title,
             "score": round(r.score, 4),
+            "text": (r.chunk.text[:320] + "…") if len(r.chunk.text) > 320 else r.chunk.text,
         }
         for i, r in enumerate(results, start=1)
     ]
