@@ -6,9 +6,9 @@ Four sections:
   - Evaluation         the measured scorecard (faithfulness, relevancy, block rate)
   - About              architecture, OWASP coverage, stack
 
-Design system (via ui-ux-pro-max): OLED dark theme, blue (#3B82F6) + amber
-(#F59E0B) accents, Fira Sans / Fira Code typography. Brand uses a custom SVG
-logo image; status is shown with text chips (no emojis, no decorative icons).
+Design system: OLED dark theme, blue (#3B82F6) + amber (#F59E0B) accents,
+Fira Sans / Fira Code typography. Brand uses a custom SVG logo image; status is
+shown with text chips (no emojis, no decorative icons).
 
 Talks to the FastAPI backend over HTTP (API_URL, default http://localhost:8000).
 """
