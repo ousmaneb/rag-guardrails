@@ -63,7 +63,7 @@ LLM09 Misinformation · LLM10 Unbounded Consumption — see
 ## Run it in 2 minutes (Docker)
 
 ```bash
-git clone <your-repo> && cd rag-guardrails
+git clone https://github.com/ousmaneb/rag-guardrails && cd rag-guardrails
 cp .env.example .env        # add ANTHROPIC_API_KEY (optional — see note below)
 docker compose up --build   # API on :8000, UI on :8501, pgvector on :5432
 ```
