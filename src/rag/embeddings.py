@@ -41,9 +41,7 @@ class HashEmbedder:
         out = np.zeros((len(texts), self.dim), dtype=np.float32)
         for i, text in enumerate(texts):
             for token in text.lower().split():
-                h = int.from_bytes(
-                    hashlib.md5(token.encode()).digest()[:4], "little"
-                )
+                h = int.from_bytes(hashlib.md5(token.encode()).digest()[:4], "little")
                 out[i, h % self.dim] += 1.0
         return _l2_normalize(out)
 
@@ -54,15 +52,14 @@ class SentenceTransformerEmbedder:
 
         self._model = SentenceTransformer(model_name)
         # Method was renamed across sentence-transformers versions.
-        get_dim = getattr(
-            self._model, "get_embedding_dimension", None
-        ) or self._model.get_sentence_embedding_dimension
+        get_dim = (
+            getattr(self._model, "get_embedding_dimension", None)
+            or self._model.get_sentence_embedding_dimension
+        )
         self.dim = get_dim()
 
     def embed(self, texts: list[str]) -> np.ndarray:
-        vecs = self._model.encode(
-            texts, normalize_embeddings=True, convert_to_numpy=True
-        )
+        vecs = self._model.encode(texts, normalize_embeddings=True, convert_to_numpy=True)
         return vecs.astype(np.float32)
 
 

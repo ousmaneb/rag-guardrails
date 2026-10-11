@@ -36,9 +36,7 @@ class MemoryStore:
 
     def upsert(self, chunks: list[Chunk], vectors: np.ndarray) -> None:
         self._chunks.extend(chunks)
-        self._matrix = (
-            vectors if self._matrix is None else np.vstack([self._matrix, vectors])
-        )
+        self._matrix = vectors if self._matrix is None else np.vstack([self._matrix, vectors])
 
     def search(self, query_vector: np.ndarray, top_k: int) -> list[RetrievedChunk]:
         if self._matrix is None or not self._chunks:
@@ -80,9 +78,7 @@ class PgVectorStore:
                 )
                 """
             )
-            conn.execute(
-                "CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops)"
-            )
+            conn.execute("CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops)")
 
     def upsert(self, chunks: list[Chunk], vectors: np.ndarray) -> None:
         with self._connect() as conn, conn.cursor() as cur:

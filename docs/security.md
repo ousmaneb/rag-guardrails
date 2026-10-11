@@ -37,4 +37,18 @@ rate alongside the block rate.
   gitleaks secret scan.
 - Pin dependencies in `pyproject.toml`.
 - PII is redacted before logging; raw user input with secrets is never logged.
-- The public endpoint is rate-limited so a demo link can't run up a bill.
+- The public endpoint is rate-limited so a demo link can't run up a bill. The
+  limiter's memory is bounded (`RATE_LIMIT_MAX_CLIENTS`, idle clients pruned).
+  Behind a reverse proxy set `TRUST_PROXY_HOPS` to the number of proxies so the
+  real client IP is used; the client-controlled left part of
+  `X-Forwarded-For` is never trusted.
+- Optional `API_KEY`: when set, `POST /chat` requires it (`X-API-Key` or
+  `Authorization: Bearer`), compared in constant time. Unset = open public demo.
+- `GET /health` returns only `{"status": "ok"}` publicly; model/provider/config
+  details need the API key (or `HEALTH_DETAILS_PUBLIC=true`).
+- CORS is off by default (`CORS_ALLOW_ORIGINS` empty); list exact origins if a
+  browser frontend calls the API directly.
+- The Docker image runs as an unprivileged `app` user (uid 10001); the
+  embedding-model cache lives in `/home/app/.cache/huggingface`.
+- docker-compose reads Postgres credentials from `.env`; the `rag` fallback is
+  for local development only and the database is bound to `127.0.0.1`.
