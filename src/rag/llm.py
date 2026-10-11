@@ -38,7 +38,12 @@ class EchoProvider:
 # and older Sonnet tiers reject both with a 400, so we only send them when the
 # configured model is known to support them.
 _ADAPTIVE_THINKING_MODELS = (
-    "opus-4-6", "opus-4-7", "opus-4-8", "sonnet-4-6", "fable-5", "mythos-5",
+    "opus-4-6",
+    "opus-4-7",
+    "opus-4-8",
+    "sonnet-4-6",
+    "fable-5",
+    "mythos-5",
 )
 
 

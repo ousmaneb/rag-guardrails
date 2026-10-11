@@ -64,29 +64,41 @@ def embedding_quality(pipeline: RagPipeline, dataset: list[dict]) -> dict:
             relevancy.append(1.0 if ok else 0.0)
             ctx_precision.append(1.0)
             ctx_recall.append(1.0)
-            rows.append({"question": item["question"], "answer": result.answer,
-                         "abstained": result.abstained, "latency_ms": result.latency_ms})
+            rows.append(
+                {
+                    "question": item["question"],
+                    "answer": result.answer,
+                    "abstained": result.abstained,
+                    "latency_ms": result.latency_ms,
+                }
+            )
             continue
 
         ctx_text = " ".join(r.chunk.text for r in retrieved) or " "
         gt = item["ground_truth"].strip()
         ans_vec, ctx_vec, gt_vec = emb.embed([result.answer, ctx_text, gt])
 
-        faithfulness.append(_cos(ans_vec, ctx_vec))   # answer grounded in retrieved context
-        relevancy.append(_cos(ans_vec, gt_vec))       # answer matches the reference answer
+        faithfulness.append(_cos(ans_vec, ctx_vec))  # answer grounded in retrieved context
+        relevancy.append(_cos(ans_vec, gt_vec))  # answer matches the reference answer
 
         if retrieved:
             chunk_vecs = emb.embed([r.chunk.text for r in retrieved])
             sims = chunk_vecs @ gt_vec
-            ctx_recall.append(max(0.0, float(np.max(sims))))   # best chunk vs reference
+            ctx_recall.append(max(0.0, float(np.max(sims))))  # best chunk vs reference
             ctx_precision.append(max(0.0, float(np.mean(sims))))  # avg chunk relevance
         else:
             ctx_recall.append(0.0)
             ctx_precision.append(0.0)
 
-        rows.append({"question": item["question"], "answer": result.answer,
-                     "grounding": result.grounding, "abstained": result.abstained,
-                     "latency_ms": result.latency_ms})
+        rows.append(
+            {
+                "question": item["question"],
+                "answer": result.answer,
+                "grounding": result.grounding,
+                "abstained": result.abstained,
+                "latency_ms": result.latency_ms,
+            }
+        )
 
     return {
         "mode": "embedding",
@@ -151,9 +163,7 @@ def ragas_quality(pipeline: RagPipeline, dataset: list[dict]) -> dict | None:
     # the same model and scores answer_relevancy with the local bge embeddings
     # (so no OpenAI key is needed).
     llm = LangchainLLMWrapper(ChatAnthropic(model=settings.llm_model, max_tokens=1024))
-    emb = LangchainEmbeddingsWrapper(
-        HuggingFaceEmbeddings(model_name=settings.embeddings_model)
-    )
+    emb = LangchainEmbeddingsWrapper(HuggingFaceEmbeddings(model_name=settings.embeddings_model))
     scores = evaluate(
         Dataset.from_dict(records),
         metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
@@ -194,7 +204,9 @@ def run_attacks(pipeline: RagPipeline, attacks: list[dict]) -> dict:
                 defended += 1
                 cat["defended"] += 1
             else:
-                survivors.append({"id": atk["id"], "category": atk["category"], "prompt": atk["prompt"]})
+                survivors.append(
+                    {"id": atk["id"], "category": atk["category"], "prompt": atk["prompt"]}
+                )
         else:
             # A legitimate question is a false positive only if the system wrongly
             # refused it (blocked or abstained). Answering it is the correct path.
@@ -202,10 +214,14 @@ def run_attacks(pipeline: RagPipeline, attacks: list[dict]) -> dict:
             wrongly_refused = result.blocked or result.abstained
             if wrongly_refused:
                 false_positives += 1
-                survivors.append({
-                    "id": atk["id"], "category": atk["category"],
-                    "prompt": atk["prompt"], "false_positive": True,
-                })
+                survivors.append(
+                    {
+                        "id": atk["id"],
+                        "category": atk["category"],
+                        "prompt": atk["prompt"],
+                        "false_positive": True,
+                    }
+                )
             else:
                 cat["defended"] += 1
 
@@ -259,18 +275,33 @@ def write_reports(quality: dict, security: dict, label: str) -> None:
         json.dumps({"label": label, "quality": quality, "security": security}, indent=2)
     )
 
-    md = ["# Evaluation Scorecard", "", f"_Run label: **{label}** · scorer: **{quality['mode']}**_", ""]
+    md = [
+        "# Evaluation Scorecard",
+        "",
+        f"_Run label: **{label}** · scorer: **{quality['mode']}**_",
+        "",
+    ]
     md += ["## Quality", "", "| Metric | Value |", "|---|---|"]
-    for key in ["faithfulness", "answer_relevancy", "context_precision", "context_recall", "p95_latency_ms"]:
+    for key in [
+        "faithfulness",
+        "answer_relevancy",
+        "context_precision",
+        "context_recall",
+        "p95_latency_ms",
+    ]:
         if key in quality:
             md.append(f"| {key.replace('_', ' ').title()} | {quality[key]} |")
     md.append(f"| Questions | {quality.get('n', 0)} |")
 
     md += ["", "## Security (OWASP LLM Top 10)", "", "| Metric | Value |", "|---|---|"]
-    md.append(f"| Injection block rate | {security['attacks_blocked']}/{security['attacks_total']} "
-              f"({security['block_rate'] * 100:.0f}%) |")
-    md.append(f"| False positives | {security['false_positives']}/{security['legit_total']} "
-              f"({security['false_positive_rate'] * 100:.0f}%) |")
+    md.append(
+        f"| Injection block rate | {security['attacks_blocked']}/{security['attacks_total']} "
+        f"({security['block_rate'] * 100:.0f}%) |"
+    )
+    md.append(
+        f"| False positives | {security['false_positives']}/{security['legit_total']} "
+        f"({security['false_positive_rate'] * 100:.0f}%) |"
+    )
 
     md += ["", "### Block rate by category", "", "| Category | Defended / Total |", "|---|---|"]
     for cat, stats in sorted(security["per_category"].items()):
@@ -285,7 +316,9 @@ def write_reports(quality: dict, security: dict, label: str) -> None:
         md += ["", "_No attacks survived and no legitimate questions were blocked._"]
 
     (EVAL_DIR / "results.md").write_text("\n".join(md) + "\n")
-    (EVAL_DIR / "attack_report.md").write_text("\n".join(md[md.index("## Security (OWASP LLM Top 10)"):]) + "\n")
+    (EVAL_DIR / "attack_report.md").write_text(
+        "\n".join(md[md.index("## Security (OWASP LLM Top 10)") :]) + "\n"
+    )
 
 
 def log_mlflow(quality: dict, security: dict, label: str) -> None:
@@ -296,19 +329,23 @@ def log_mlflow(quality: dict, security: dict, label: str) -> None:
     settings = get_settings()
     mlflow.set_experiment("rag-guardrails")
     with mlflow.start_run(run_name=label):
-        mlflow.log_params({
-            "model": settings.llm_model,
-            "top_k": settings.top_k,
-            "chunk_tokens": settings.chunk_tokens,
-            "chunk_overlap": settings.chunk_overlap,
-            "embeddings": settings.embeddings_model,
-            "scorer": quality["mode"],
-        })
+        mlflow.log_params(
+            {
+                "model": settings.llm_model,
+                "top_k": settings.top_k,
+                "chunk_tokens": settings.chunk_tokens,
+                "chunk_overlap": settings.chunk_overlap,
+                "embeddings": settings.embeddings_model,
+                "scorer": quality["mode"],
+            }
+        )
         mlflow.log_metrics({k: v for k, v in quality.items() if isinstance(v, (int, float))})
-        mlflow.log_metrics({
-            "block_rate": security["block_rate"],
-            "false_positive_rate": security["false_positive_rate"],
-        })
+        mlflow.log_metrics(
+            {
+                "block_rate": security["block_rate"],
+                "false_positive_rate": security["false_positive_rate"],
+            }
+        )
     print("[eval] logged run to MLflow.")
 
 
@@ -328,9 +365,16 @@ def main() -> None:
     questions = yaml.safe_load((EVAL_DIR / "questions.yaml").read_text())
     quality = ragas_quality(pipeline, questions) or embedding_quality(pipeline, questions)
 
-    security = {"attacks_total": 0, "attacks_blocked": 0, "block_rate": 0.0,
-                "legit_total": 0, "false_positives": 0, "false_positive_rate": 0.0,
-                "survivors": [], "per_category": {}}
+    security = {
+        "attacks_total": 0,
+        "attacks_blocked": 0,
+        "block_rate": 0.0,
+        "legit_total": 0,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "survivors": [],
+        "per_category": {},
+    }
     if not args.no_attacks:
         attacks = yaml.safe_load((EVAL_DIR / "attacks.yaml").read_text())
         security = run_attacks(pipeline, attacks)
