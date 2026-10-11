@@ -1,13 +1,16 @@
 """FastAPI app: POST /chat, GET /health.
 
 A simple in-process rate limiter caps the public endpoint so a demo link can't
-run up a bill (a small nod to OWASP LLM10, Unbounded Consumption).
+run up a bill (a small nod to OWASP LLM10, Unbounded Consumption). Setting
+API_KEY locks /chat to callers that present the key.
 """
 
 from __future__ import annotations
 
+import hmac
+import threading
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
@@ -45,12 +48,13 @@ app = FastAPI(
     description="Retrieval-augmented assistant hardened against the OWASP LLM Top 10.",
     lifespan=lifespan,
 )
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.cors_allow_origins.split(",")],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if settings.cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "Authorization", "X-API-Key"],
+    )
 
 # Pipeline is built lazily on first request so the app imports cheaply (and so
 # tests can monkeypatch the store before the model loads).
@@ -65,18 +69,76 @@ def get_pipeline() -> RagPipeline:
 
 
 # --- minimal sliding-window rate limiter (per client IP) --------------------
-_hits: dict[str, deque] = {}
+# Bounded: idle clients are pruned and, past `rate_limit_max_clients`, the
+# least-recently-seen client is evicted, so many distinct IPs can't grow memory
+# without limit.
+_WINDOW_SECONDS = 60.0
+_hits: OrderedDict[str, deque] = OrderedDict()
+_hits_lock = threading.Lock()
 
 
-def _rate_limited(client: str) -> bool:
-    now = time.time()
-    window = _hits.setdefault(client, deque())
-    while window and now - window[0] > 60:
-        window.popleft()
-    if len(window) >= settings.rate_limit_per_minute:
-        return True
-    window.append(now)
-    return False
+def _rate_limited(client: str, now: float | None = None) -> bool:
+    now = time.time() if now is None else now
+    with _hits_lock:
+        # Drop clients whose newest hit is outside the window (oldest first).
+        while _hits:
+            oldest_key, oldest = next(iter(_hits.items()))
+            if oldest and now - oldest[-1] <= _WINDOW_SECONDS:
+                break
+            del _hits[oldest_key]
+
+        window = _hits.get(client)
+        if window is None:
+            window = deque()
+            _hits[client] = window
+            while len(_hits) > max(1, settings.rate_limit_max_clients):
+                _hits.popitem(last=False)
+        else:
+            _hits.move_to_end(client)
+        while window and now - window[0] > _WINDOW_SECONDS:
+            window.popleft()
+        if len(window) >= settings.rate_limit_per_minute:
+            return True
+        window.append(now)
+        return False
+
+
+def client_ip(request: Request) -> str:
+    """Client address for rate limiting.
+
+    With TRUST_PROXY_HOPS=N, take the Nth entry from the right of
+    X-Forwarded-For (the address our own outermost trusted proxy saw). Entries
+    further left are client-controlled and are never used.
+    """
+    peer = request.client.host if request.client else "unknown"
+    hops = settings.trust_proxy_hops
+    if hops <= 0:
+        return peer
+    header = ",".join(request.headers.getlist("x-forwarded-for"))
+    chain = [part.strip() for part in header.split(",") if part.strip()]
+    if len(chain) < hops:
+        return peer
+    return chain[-hops]
+
+
+def _presented_key(request: Request) -> str | None:
+    key = request.headers.get("x-api-key")
+    if key:
+        return key
+    auth = request.headers.get("authorization", "")
+    scheme, _, token = auth.partition(" ")
+    if scheme.lower() == "bearer" and token:
+        return token.strip()
+    return None
+
+
+def _has_valid_key(request: Request) -> bool:
+    if not settings.api_key:
+        return False
+    presented = _presented_key(request)
+    if presented is None:
+        return False
+    return hmac.compare_digest(presented.encode(), settings.api_key.encode())
 
 
 class ChatRequest(BaseModel):
@@ -96,7 +158,11 @@ class ChatResponse(BaseModel):
 
 
 @app.get("/health")
-def health() -> dict:
+def health(request: Request) -> dict:
+    # Public liveness probe stays minimal; config details only for callers with
+    # the API key (or when HEALTH_DETAILS_PUBLIC=true).
+    if not (_has_valid_key(request) or settings.health_details_public):
+        return {"status": "ok"}
     pipe = get_pipeline()
     try:
         doc_count = pipe.retriever.store.count()
@@ -119,8 +185,13 @@ def health() -> dict:
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, request: Request) -> ChatResponse:
-    client = request.client.host if request.client else "unknown"
-    if _rate_limited(client):
+    if _rate_limited(client_ip(request)):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again shortly.")
+    if settings.api_key and not _has_valid_key(request):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid API key.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     result = get_pipeline().answer(req.question)
     return ChatResponse(**result.to_dict())

@@ -26,6 +26,10 @@ import httpx
 import streamlit as st
 
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
+# Optional: must match the API's API_KEY when the API is locked down. Sent
+# server-side only; never rendered in the page.
+API_KEY = os.environ.get("API_KEY", "")
+API_HEADERS = {"X-API-Key": API_KEY} if API_KEY else {}
 GITHUB_URL = "https://github.com/ousmaneb/rag-guardrails"
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = Path(__file__).resolve().parent / "assets"
@@ -159,14 +163,16 @@ def brand_html(size: int, main_html: str, sub: str) -> str:
 @st.cache_data(ttl=8, show_spinner=False)
 def get_health() -> dict | None:
     try:
-        return httpx.get(f"{API_URL}/health", timeout=5).json()
+        return httpx.get(f"{API_URL}/health", headers=API_HEADERS, timeout=5).json()
     except Exception:
         return None
 
 
 def ask(question: str) -> dict | None:
     try:
-        r = httpx.post(f"{API_URL}/chat", json={"question": question}, timeout=90)
+        r = httpx.post(
+            f"{API_URL}/chat", json={"question": question}, headers=API_HEADERS, timeout=90
+        )
         r.raise_for_status()
         return r.json()
     except Exception as exc:
@@ -262,25 +268,28 @@ with st.sidebar:
             '<span class="pill green"><span class="dot green"></span>API online</span>',
             unsafe_allow_html=True,
         )
-        rows = [
-            ("Model", health.get("model", "—")),
-            ("Provider", health.get("llm_provider", "—")),
-            ("Vector store", health.get("vector_store", "—")),
-            ("Embeddings", str(health.get("embeddings", "—")).split("/")[-1]),
-            ("Top-k", health.get("top_k", "—")),
-            ("Indexed chunks", health.get("indexed_chunks", "—")),
-            ("Rate limit", f"{health.get('rate_limit_per_minute', '—')}/min"),
-        ]
-        st.markdown(
-            '<div class="card" style="margin-top:10px">'
-            + "".join(
-                f'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.82rem">'
-                f'<span class="muted">{k}</span><span class="mono">{html.escape(str(v))}</span></div>'
-                for k, v in rows
+        # /health only returns details when the API key is configured (or
+        # HEALTH_DETAILS_PUBLIC=true); otherwise just show "online".
+        if "model" in health:
+            rows = [
+                ("Model", health.get("model", "—")),
+                ("Provider", health.get("llm_provider", "—")),
+                ("Vector store", health.get("vector_store", "—")),
+                ("Embeddings", str(health.get("embeddings", "—")).split("/")[-1]),
+                ("Top-k", health.get("top_k", "—")),
+                ("Indexed chunks", health.get("indexed_chunks", "—")),
+                ("Rate limit", f"{health.get('rate_limit_per_minute', '—')}/min"),
+            ]
+            st.markdown(
+                '<div class="card" style="margin-top:10px">'
+                + "".join(
+                    f'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.82rem">'
+                    f'<span class="muted">{k}</span><span class="mono">{html.escape(str(v))}</span></div>'
+                    for k, v in rows
+                )
+                + "</div>",
+                unsafe_allow_html=True,
             )
-            + "</div>",
-            unsafe_allow_html=True,
-        )
     else:
         st.markdown(
             '<span class="pill red"><span class="dot red"></span>API offline</span>',

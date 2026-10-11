@@ -97,7 +97,13 @@ python eval/run_eval.py --reingest   # reproduce the scorecard
 ## API
 
 `POST /chat` → `{ answer, citations, latency_ms, guardrail_flags, blocked,
-abstained, injection_score, grounding, top_retrieval_score }`. `GET /health`.
+abstained, injection_score, grounding, top_retrieval_score }`. `GET /health`
+returns `{"status": "ok"}` (details only with the API key).
+
+Set `API_KEY` in `.env` to require `X-API-Key: <key>` on `/chat` (the UI sends
+the same key); leave it empty for an open demo. Behind a reverse proxy, set
+`TRUST_PROXY_HOPS` (e.g. `1`) so rate limiting sees real client IPs. CORS is
+off unless you list origins in `CORS_ALLOW_ORIGINS`. See `.env.example`.
 
 ```bash
 curl -s localhost:8000/chat -H 'content-type: application/json' \
