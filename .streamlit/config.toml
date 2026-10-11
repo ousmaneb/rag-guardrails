@@ -4,7 +4,7 @@
 # you want the menu back (e.g. for the in-app "Record screen" option).
 [client]
 toolbarMode = "minimal"
-showErrorDetails = true
+showErrorDetails = false
 
 [browser]
 gatherUsageStats = false
