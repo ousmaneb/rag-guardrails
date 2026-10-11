@@ -16,6 +16,7 @@ Talks to the FastAPI backend over HTTP (API_URL, default http://localhost:8000).
 from __future__ import annotations
 
 import base64
+import html
 import json
 import os
 import time
@@ -239,7 +240,7 @@ with st.sidebar:
             '<div class="card" style="margin-top:10px">'
             + "".join(
                 f'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.82rem">'
-                f'<span class="muted">{k}</span><span class="mono">{v}</span></div>'
+                f'<span class="muted">{k}</span><span class="mono">{html.escape(str(v))}</span></div>'
                 for k, v in rows
             )
             + "</div>",
@@ -303,7 +304,7 @@ def render_result(data: dict) -> None:
     st.markdown(
         f'<div class="card {cls}"><h4>{chip} {head}</h4>'
         + (f'<div class="muted" style="margin-bottom:8px">{note}</div>' if note else "")
-        + f'<div style="font-size:.95rem;line-height:1.6">{data["answer"]}</div></div>',
+        + f'<div style="font-size:.95rem;line-height:1.6">{html.escape(data["answer"])}</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -311,8 +312,9 @@ def render_result(data: dict) -> None:
         with st.expander(f"Citations ({len(data['citations'])})"):
             for c in data["citations"]:
                 st.markdown(
-                    f'<div class="cite"><span class="src">[{c["n"]}] {c["source"]} · '
-                    f'score {c["score"]}</span><div class="txt">{c.get("text","")}</div></div>',
+                    f'<div class="cite"><span class="src">[{html.escape(str(c["n"]))}] '
+                    f'{html.escape(str(c["source"]))} · score {html.escape(str(c["score"]))}</span>'
+                    f'<div class="txt">{html.escape(str(c.get("text", "")))}</div></div>',
                     unsafe_allow_html=True,
                 )
 
@@ -325,7 +327,7 @@ def render_result(data: dict) -> None:
         + f'<div class="barrow" style="margin-top:8px"><span>Latency</span>'
         f'<b>{data["latency_ms"]} ms</b></div>'
         + ('<div style="margin-top:8px">Flags: ' + " ".join(
-            f'<span class="pill amber">{f}</span>' for f in data["guardrail_flags"]) + "</div>"
+            f'<span class="pill amber">{html.escape(str(f))}</span>' for f in data["guardrail_flags"]) + "</div>"
            if data["guardrail_flags"] else
            '<div class="muted" style="margin-top:8px">Flags: none</div>')
         + "</div>",
@@ -379,7 +381,7 @@ with tab_chat:
     for turn in st.session_state.history:
         st.markdown(
             f'<div class="card" style="background:#0e1626"><span class="muted">You asked</span>'
-            f'<div style="font-weight:600;margin-top:2px">{turn["q"]}</div></div>',
+            f'<div style="font-weight:600;margin-top:2px">{html.escape(turn["q"])}</div></div>',
             unsafe_allow_html=True,
         )
         render_result(turn["r"])
@@ -460,10 +462,10 @@ with tab_sec:
         chip_cls = "green" if good else "red"
         st.markdown(
             f'<div class="card {cls}"><h4><span class="chip {chip_cls}">{verdict}</span> {label}</h4>'
-            f'<div class="muted mono" style="font-size:.8rem">{prompt}</div>'
-            f'<div style="margin-top:8px;font-size:.86rem">{r["answer"][:200]}</div>'
+            f'<div class="muted mono" style="font-size:.8rem">{html.escape(prompt)}</div>'
+            f'<div style="margin-top:8px;font-size:.86rem">{html.escape(r["answer"][:200])}</div>'
             + ('<div style="margin-top:8px">' + " ".join(
-                f'<span class="pill amber">{f}</span>' for f in r["guardrail_flags"]) + "</div>"
+                f'<span class="pill amber">{html.escape(str(f))}</span>' for f in r["guardrail_flags"]) + "</div>"
                if r["guardrail_flags"] else "")
             + "</div>",
             unsafe_allow_html=True,
